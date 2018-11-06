@@ -1,4 +1,4 @@
-const { GitProcess } = require('dugite')
+const {GitProcess} = require('dugite')
 const Entities = require('html-entities').AllHtmlEntities
 const fetch = require('node-fetch')
 const fs = require('fs')
@@ -17,7 +17,7 @@ const EXCLUDE_TAGS = []
 const entities = new Entities()
 const github = new GitHub()
 const gitDir = path.resolve(__dirname, '..', '..')
-github.authenticate({ type: 'token', token: process.env.ELECTRON_GITHUB_TOKEN })
+github.authenticate({type: 'token', token: process.env.ELECTRON_GITHUB_TOKEN})
 let currentBranch
 
 const semanticMap = new Map()
@@ -52,7 +52,7 @@ const getTagsOnBranch = async (branchName) => {
   const gitArgs = ['tag', '--merged', branchName]
   const tagDetails = await GitProcess.exec(gitArgs, gitDir)
   if (tagDetails.exitCode === 0) {
-    return tagDetails.stdout.trim().split('\n').filter(tag => !EXCLUDE_TAGS.includes(tag))
+    return tagDetails.stdout.trim().split('\n').filter((tag) => !EXCLUDE_TAGS.includes(tag))
   }
   throw GitProcess.parseError(tagDetails.stderr)
 }
@@ -81,7 +81,7 @@ const getBranches = async () => {
   const gitArgs = ['branch', '--remote']
   const branchDetails = await GitProcess.exec(gitArgs, gitDir)
   if (branchDetails.exitCode === 0) {
-    return branchDetails.stdout.trim().split('\n').map(b => b.trim()).filter(branch => branch !== 'origin/HEAD -> origin/master')
+    return branchDetails.stdout.trim().split('\n').map((b) => b.trim()).filter((branch) => branch !== 'origin/HEAD -> origin/master')
   }
   throw GitProcess.parseError(branchDetails.stderr)
 }
@@ -92,8 +92,8 @@ const getLastReleaseBranch = async () => {
   const current = await getCurrentBranch()
   const allBranches = await getBranches()
   const releaseBranches = allBranches
-    .filter(branch => /^origin\/[0-9]+-[0-9]+-x$/.test(branch))
-    .filter(branch => branch !== current && branch !== `origin/${current}`)
+      .filter((branch) => /^origin\/[0-9]+-[0-9]+-x$/.test(branch))
+      .filter((branch) => branch !== current && branch !== `origin/${current}`)
   let latest = null
   for (const b of releaseBranches) {
     if (latest === null) latest = b
@@ -143,7 +143,7 @@ const getCommitDetails = async (commitHash) => {
   }
   return {
     mergedFrom: prIdent,
-    prTitle: entities.decode(title.substr(TITLE_PREFIX.length))
+    prTitle: entities.decode(title.substr(TITLE_PREFIX.length)),
   }
 }
 
@@ -177,11 +177,11 @@ const NoteType = {
   BREAKING_CHANGE: 'breaking-change',
   DOCUMENTATION: 'doc',
   OTHER: 'other',
-  UNKNOWN: 'unknown'
+  UNKNOWN: 'unknown',
 }
 
 class Note {
-  constructor (trueTitle, prNumber, ignoreIfInVersion) {
+  constructor(trueTitle, prNumber, ignoreIfInVersion) {
     // Self bindings
     this.guessType = this.guessType.bind(this)
     this.fetchPrInfo = this.fetchPrInfo.bind(this)
@@ -207,7 +207,7 @@ class Note {
     }
   }
 
-  guessType () {
+  guessType() {
     if (this.originalTitle.startsWith('fix:') ||
         this.originalTitle.startsWith('Fix:')) return NoteType.FIX
     if (this.originalTitle.startsWith('feat:')) return NoteType.FEATURE
@@ -227,11 +227,11 @@ class Note {
 
     this.stripColon = false
 
-    if (this.pr && this.pr.data.labels.find(label => label.name === 'semver/breaking-change')) {
+    if (this.pr && this.pr.data.labels.find((label) => label.name === 'semver/breaking-change')) {
       return NoteType.BREAKING_CHANGE
     }
     // FIXME: Backported features will not be picked up by this
-    if (this.pr && this.pr.data.labels.find(label => label.name === 'semver/nonbreaking-feature')) {
+    if (this.pr && this.pr.data.labels.find((label) => label.name === 'semver/nonbreaking-feature')) {
       return NoteType.FEATURE
     }
 
@@ -258,7 +258,7 @@ class Note {
     return NoteType.UNKNOWN
   }
 
-  async _getPr (n) {
+  async _getPr(n) {
     const cachePath = path.resolve(CACHE_DIR, n)
     if (fs.existsSync(cachePath)) {
       return JSON.parse(fs.readFileSync(cachePath, 'utf8'))
@@ -267,9 +267,9 @@ class Note {
         const pr = await github.pullRequests.get({
           number: n,
           owner: 'electron',
-          repo: 'electron'
+          repo: 'electron',
         })
-        fs.writeFileSync(cachePath, JSON.stringify({ data: pr.data }))
+        fs.writeFileSync(cachePath, JSON.stringify({data: pr.data}))
         return pr
       } catch (err) {
         console.info('#### FAILED:', `#${n}`)
@@ -278,11 +278,11 @@ class Note {
     }
   }
 
-  async fetchPrInfo () {
+  async fetchPrInfo() {
     if (this.pr) return
     const n = this.prNumber.replace('#', '')
     this.pr = await this._getPr(n)
-    if (this.pr.data.labels.find(label => label.name === `merged/${this._ignoreIfInVersion.replace('origin/', '')}`)) {
+    if (this.pr.data.labels.find((label) => label.name === `merged/${this._ignoreIfInVersion.replace('origin/', '')}`)) {
       // This means we probably backported this PR, let's try figure out what
       // the corresponding backport PR would be by searching through comments
       // for trop
@@ -295,15 +295,17 @@ class Note {
           number: n,
           owner: 'electron',
           repo: 'electron',
-          per_page: 100
+          per_page: 100,
         })
-        fs.writeFileSync(cacheCommentsPath, JSON.stringify({ data: comments.data }))
+        fs.writeFileSync(cacheCommentsPath, JSON.stringify({data: comments.data}))
       }
 
       const tropComment = comments.data.find(
-        c => (
-          new RegExp(`We have automatically backported this PR to "${this._ignoreIfInVersion.replace('origin/', '')}", please check out #[0-9]+`)
-        ).test(c.body)
+          (c) => (
+            new RegExp(
+                `We have automatically backported this PR to "${this._ignoreIfInVersion.replace('origin/', '')}", please check out #[0-9]+`
+            )
+          ).test(c.body)
       )
 
       if (tropComment) {
@@ -325,7 +327,7 @@ class Note {
 Note.findByTrueTitle = (trueTitle) => notes.get(trueTitle)
 
 class ReleaseNotes {
-  constructor (ignoreIfInVersion) {
+  constructor(ignoreIfInVersion) {
     this._ignoreIfInVersion = ignoreIfInVersion
     this._handledPrs = new Set()
     this._revertedPrs = new Set()
@@ -337,7 +339,7 @@ class ReleaseNotes {
     this.unknown = []
   }
 
-  async parseCommits (commitHashes) {
+  async parseCommits(commitHashes) {
     await doWork(commitHashes, async (commit) => {
       const info = await getCommitDetails(commit)
       if (!info) return
@@ -392,17 +394,17 @@ class ReleaseNotes {
     }, 20)
   }
 
-  list (notes) {
+  list(notes) {
     if (notes.length === 0) {
       return '_There are no items in this section this release_'
     }
     return notes
-      .filter(note => !note.reverted)
-      .sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
-      .map((note) => `* ${note.title.trim()} ${note.prNumber}`).join('\n')
+        .filter((note) => !note.reverted)
+        .sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
+        .map((note) => `* ${note.title.trim()} ${note.prNumber}`).join('\n')
   }
 
-  render () {
+  render() {
     return `
 # Release Notes
 
@@ -427,9 +429,9 @@ ${this.list(this.other)}
 Some documentation updates, fixes and reworks: ${
   this.docs.length === 0
     ? '_None in this release_'
-    : this.docs.sort((a, b) => a.prNumber.localeCompare(b.prNumber)).map(note => note.prNumber).join(', ')
+    : this.docs.sort((a, b) => a.prNumber.localeCompare(b.prNumber)).map((note) => note.prNumber).join(', ')
 }
-${this.unknown.filter(n => !n.reverted).length > 0
+${this.unknown.filter((n) => !n.reverted).length > 0
     ? `## Unknown (fix these before publishing release)
 
 ${this.list(this.unknown)}
@@ -437,7 +439,7 @@ ${this.list(this.unknown)}
   }
 }
 
-async function main () {
+async function main() {
   if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR)
   }
@@ -448,7 +450,7 @@ async function main () {
   const currentBranchOff = await getBranchOffPoint(await getCurrentBranch())
 
   const commits = await getCommitsMergedIntoCurrentBranchSincePoint(
-    lastKnownReleaseInCurrentStream || currentBranchOff
+      lastKnownReleaseInCurrentStream || currentBranchOff
   )
 
   if (!lastKnownReleaseInCurrentStream) {
@@ -464,7 +466,7 @@ async function main () {
 
   console.log(notes.render())
 
-  const badNotes = notes.unknown.filter(n => !n.reverted).length
+  const badNotes = notes.unknown.filter((n) => !n.reverted).length
   if (badNotes > 0) {
     throw new Error(`You have ${badNotes.length} unknown release notes, please fix them before releasing`)
   }

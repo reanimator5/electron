@@ -3,12 +3,12 @@
 if (!process.env.CI) require('dotenv-safe').load()
 require('colors')
 const args = require('minimist')(process.argv.slice(2), {
-  boolean: ['automaticRelease', 'notesOnly', 'stable']
+  boolean: ['automaticRelease', 'notesOnly', 'stable'],
 })
 const ciReleaseBuild = require('./ci-release-build')
-const { execSync } = require('child_process')
+const {execSync} = require('child_process')
 const fail = '\u2717'.red
-const { GitProcess } = require('dugite')
+const {GitProcess} = require('dugite')
 const GitHub = require('github')
 const pass = '\u2713'.green
 const path = require('path')
@@ -28,9 +28,9 @@ if (!versionType && !args.notesOnly) {
 
 const github = new GitHub()
 const gitDir = path.resolve(__dirname, '..')
-github.authenticate({ type: 'token', token: process.env.ELECTRON_GITHUB_TOKEN })
+github.authenticate({type: 'token', token: process.env.ELECTRON_GITHUB_TOKEN})
 
-async function getNewVersion (dryRun) {
+async function getNewVersion(dryRun) {
   if (!dryRun) {
     console.log(`Bumping for new "${versionType}" version.`)
   }
@@ -40,7 +40,7 @@ async function getNewVersion (dryRun) {
     scriptArgs.push('--dry-run')
   }
   try {
-    let bumpVersion = execSync(scriptArgs.join(' '), { encoding: 'UTF-8' })
+    let bumpVersion = execSync(scriptArgs.join(' '), {encoding: 'UTF-8'})
     bumpVersion = bumpVersion.substr(bumpVersion.indexOf(':') + 1).trim()
     const newVersion = `v${bumpVersion}`
     if (!dryRun) {
@@ -53,7 +53,7 @@ async function getNewVersion (dryRun) {
   }
 }
 
-async function getCurrentBranch (gitDir) {
+async function getCurrentBranch(gitDir) {
   console.log(`Determining current git branch`)
   const gitArgs = ['rev-parse', '--abbrev-ref', 'HEAD']
   const branchDetails = await GitProcess.exec(gitArgs, gitDir)
@@ -70,7 +70,7 @@ async function getCurrentBranch (gitDir) {
   }
 }
 
-async function getReleaseNotes (currentBranch) {
+async function getReleaseNotes(currentBranch) {
   if (versionType === 'nightly') {
     return 'Nightlies do not get release notes, please compare tags for info'
   }
@@ -79,7 +79,7 @@ async function getReleaseNotes (currentBranch) {
     owner: 'electron',
     repo: targetRepo,
     base: `v${pkg.version}`,
-    head: currentBranch
+    head: currentBranch,
   }
   let releaseNotes
   if (args.automaticRelease) {
@@ -89,11 +89,11 @@ async function getReleaseNotes (currentBranch) {
   }
   console.log(`Checking for commits from ${pkg.version} to ${currentBranch}`)
   const commitComparison = await github.repos.compareCommits(githubOpts)
-    .catch(err => {
-      console.log(`${fail} Error checking for commits from ${pkg.version} to ` +
+      .catch((err) => {
+        console.log(`${fail} Error checking for commits from ${pkg.version} to ` +
         `${currentBranch}`, err)
-      process.exit(1)
-    })
+        process.exit(1)
+      })
 
   if (commitComparison.data.commits.length === 0) {
     console.log(`${pass} There are no commits from ${pkg.version} to ` +
@@ -105,7 +105,7 @@ async function getReleaseNotes (currentBranch) {
   const mergeRE = /Merge pull request #(\d+) from .*\n/
   const newlineRE = /(.*)\n*.*/
   const prRE = /(.* )\(#(\d+)\)(?:.*)/
-  commitComparison.data.commits.forEach(commitEntry => {
+  commitComparison.data.commits.forEach((commitEntry) => {
     let commitMessage = commitEntry.commit.message
     if (commitMessage.indexOf('#') > -1) {
       let prMatch = commitMessage.match(mergeRE)
@@ -137,20 +137,20 @@ async function getReleaseNotes (currentBranch) {
   return releaseNotes
 }
 
-async function createRelease (branchToTarget, isBeta) {
+async function createRelease(branchToTarget, isBeta) {
   const releaseNotes = await getReleaseNotes(branchToTarget)
   const newVersion = await getNewVersion()
   await tagRelease(newVersion)
   const githubOpts = {
     owner: 'electron',
-    repo: targetRepo
+    repo: targetRepo,
   }
   console.log(`Checking for existing draft release.`)
   const releases = await github.repos.getReleases(githubOpts)
-    .catch(err => {
-      console.log('$fail} Could not get releases.  Error was', err)
-    })
-  const drafts = releases.data.filter(release => release.draft &&
+      .catch((err) => {
+        console.log('$fail} Could not get releases.  Error was', err)
+      })
+  const drafts = releases.data.filter((release) => release.draft &&
     release.tag_name === newVersion)
   if (drafts.length > 0) {
     console.log(`${fail} Aborting because draft release for
@@ -180,14 +180,14 @@ async function createRelease (branchToTarget, isBeta) {
   githubOpts.tag_name = newVersion
   githubOpts.target_commitish = newVersion.indexOf('nightly') !== -1 ? 'master' : branchToTarget
   await github.repos.createRelease(githubOpts)
-    .catch(err => {
-      console.log(`${fail} Error creating new release: `, err)
-      process.exit(1)
-    })
+      .catch((err) => {
+        console.log(`${fail} Error creating new release: `, err)
+        process.exit(1)
+      })
   console.log(`${pass} Draft release for ${newVersion} has been created.`)
 }
 
-async function pushRelease (branch) {
+async function pushRelease(branch) {
   const pushDetails = await GitProcess.exec(['push', 'origin', `HEAD:${branch}`, '--follow-tags'], gitDir)
   if (pushDetails.exitCode === 0) {
     console.log(`${pass} Successfully pushed the release.  Wait for ` +
@@ -199,16 +199,16 @@ async function pushRelease (branch) {
   }
 }
 
-async function runReleaseBuilds (branch) {
+async function runReleaseBuilds(branch) {
   await ciReleaseBuild(branch, {
     ghRelease: true,
-    automaticRelease: args.automaticRelease
+    automaticRelease: args.automaticRelease,
   })
 }
 
-async function tagRelease (version) {
+async function tagRelease(version) {
   console.log(`Tagging release ${version}.`)
-  const checkoutDetails = await GitProcess.exec([ 'tag', '-a', '-m', version, version ], gitDir)
+  const checkoutDetails = await GitProcess.exec(['tag', '-a', '-m', version, version], gitDir)
   if (checkoutDetails.exitCode === 0) {
     console.log(`${pass} Successfully tagged ${version}.`)
   } else {
@@ -218,7 +218,7 @@ async function tagRelease (version) {
   }
 }
 
-async function verifyNewVersion () {
+async function verifyNewVersion() {
   const newVersion = await getNewVersion(true)
   let response
   if (args.automaticRelease) {
@@ -234,11 +234,11 @@ async function verifyNewVersion () {
   }
 }
 
-async function promptForVersion (version) {
+async function promptForVersion(version) {
   return new Promise((resolve, reject) => {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     })
     rl.question(`Do you want to create the release ${version.green} (y/N)? `, (answer) => {
       rl.close()
@@ -248,13 +248,13 @@ async function promptForVersion (version) {
 }
 
 // function to determine if there have been commits to master since the last release
-async function changesToRelease () {
+async function changesToRelease() {
   const lastCommitWasRelease = new RegExp(`^Bump v[0-9.]*(-beta[0-9.]*)?(-nightly[0-9.]*)?$`, 'g')
   const lastCommit = await GitProcess.exec(['log', '-n', '1', `--pretty=format:'%s'`], gitDir)
   return !lastCommitWasRelease.test(lastCommit.stdout)
 }
 
-async function prepareRelease (isBeta, notesOnly) {
+async function prepareRelease(isBeta, notesOnly) {
   if (args.dryRun) {
     const newVersion = await getNewVersion(true)
     console.log(newVersion)
